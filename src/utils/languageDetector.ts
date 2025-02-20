@@ -1,12 +1,3 @@
-const languageMap: { [key: string]: string } = {
-    en: "English",
-    pt: "Portuguese",
-    es: "Spanish",
-    ru: "Russian",
-    tr: "Turkish",
-    fr: "French",
-  };
-  
 // ✅ Check if the Language Detector API is supported
   export const isLanguageDetectorSupported = () => {
     return self.ai?.languageDetector !== undefined;
