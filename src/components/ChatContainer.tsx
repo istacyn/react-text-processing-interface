@@ -23,6 +23,9 @@ const ChatContainer = () => {
   const [loadingSummaries, setLoadingSummaries] = useState<{ [index:number]: boolean }>({});
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorSummaries, setErrorSummaries] = useState<{ [index: number]: string }>({});
+
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -64,58 +67,68 @@ const ChatContainer = () => {
       setIsTranslating(true); 
 
       const translation = await translateText(lastMessage.text, lastMessage.language, selectedLanguage);
+      if (!translation) throw new Error("Failed to get translation.");
 
-      if (translation) {
-        setMessages((prevMessages) => {
-          const updatedMessages = [...prevMessages];
-          updatedMessages[lastIndex] = { ...lastMessage, translation };
-          return updatedMessages;
-        });
-      }
+      setMessages((prevMessages) =>
+        prevMessages.map((msg, index) =>
+          index === lastIndex ? { ...msg, translation } : msg
+        )
+      );
+      
+      setErrorMessage(null);
     } catch (error) {
+      setErrorMessage("Translation failed. Please try again.");
       console.error("Translation error:", error);
     } finally {
       setIsTranslating(false);
     }
   };
 
-  // Function to summarize text
-  const handleSummarize = async (text: string, index: number) => {
-    if (!window.ai?.summarizer) {
-      console.warn("Summarizer API is not available.");
-      return;
-    }
-    setLoadingSummaries((prev) => ({ ...prev, [index]: true })); // Show loading
 
-    try {
-      console.log("Initializing summarizer...");
+const handleSummarize = async (text: string, index: number) => {
+  if (!window.ai?.summarizer) {
+    console.warn("Summarizer API is not available.");
+    setErrorSummaries((prev) => ({ ...prev, [index]: "Summarization service is unavailable." }));
+    return;
+  }
 
-      const summarizer = await window.ai.summarizer.create({
-        sharedContext: "This is a chat message",
-        type: "tl;dr",
-        format: "plain-text",
-        length: "short",
-      });
+  setLoadingSummaries((prev) => ({ ...prev, [index]: true })); // Show loading
+  setErrorSummaries((prev) => ({ ...prev, [index]: "" })); // Clear previous errors
 
-      console.log("Summarizer initialized. Summarizing...");
+  try {
+    console.log("Initializing summarizer...");
 
-      const summary = await summarizer.summarize(text);
+    const summarizer = await window.ai.summarizer.create({
+      sharedContext: "This is a chat message",
+      type: "tl;dr",
+      format: "plain-text",
+      length: "short",
+    });
 
-      console.log("Summary received:", summary); 
-  
-      setSummaries((prev) => ({
-        ...prev,
-        [index]: summary,
-      }));
-    } catch (error) {
-      console.error("Summarization error:", error);
-    } finally {
-      setLoadingSummaries((prev) => ({ ...prev, [index]: false }));
-    }
-  };
+    console.log("Summarizer initialized. Summarizing...");
+
+    const summary = await summarizer.summarize(text);
+
+    console.log("Summary received:", summary);
+
+    setSummaries((prev) => ({
+      ...prev,
+      [index]: summary,
+    }));
+
+    setErrorSummaries((prev) => ({ ...prev, [index]: "" })); // Clear any errors on success
+  } catch (error) {
+    console.error("Summarization error:", error);
+    setErrorSummaries((prev) => ({ ...prev, [index]: "Failed to summarize. Please try again." }));
+  } finally {
+    setLoadingSummaries((prev) => ({ ...prev, [index]: false }));
+  }
+};
+
 
   return (
     <main className="flex flex-col w-full max-w-2xl mx-auto shadow-lg rounded-2xl bg-white h-screen font-inter pt-12 text-xs md:text-base">
+
       {/* Chat Container (scrollable) */}
       <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-4" aria-live="polite">
         {messages.length === 0 ? (
@@ -132,6 +145,8 @@ const ChatContainer = () => {
                   </p>
                 </div>
               </div>
+
+              {errorMessage && <p className="text-red-500 text-center">{errorMessage}</p>}
 
               {/* Translated Message */}
               {msg.translation && (
@@ -151,6 +166,12 @@ const ChatContainer = () => {
                   >
                     Summarize
                   </button>
+                </div>
+              )}
+            
+            {errorSummaries[index] && (
+                <div className="flex justify-center">
+                  <p className="text-red-500 text-sm">{errorSummaries[index]}</p>
                 </div>
               )}
 

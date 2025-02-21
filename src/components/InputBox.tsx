@@ -9,6 +9,7 @@ interface InputBoxProps {
 
 const InputBox: React.FC<InputBoxProps> = ({ onMessageUpdate, isSending }) => {
   const [input, setInput] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -16,10 +17,13 @@ const InputBox: React.FC<InputBoxProps> = ({ onMessageUpdate, isSending }) => {
   };
 
   const handleSendMessage = () => {
-    if (input.trim()) {
-      onMessageUpdate(input);
-      setInput("");
+    if (!input.trim()) {
+      setErrorMessage("Text is required.");
+      return;
     }
+    setErrorMessage(null);
+    onMessageUpdate(input);
+    setInput("");
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -31,7 +35,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onMessageUpdate, isSending }) => {
 
   return (
     <div className="relative p-2 md:p-3 bg-white">
-       <label htmlFor="message-input" className="sr-only">Type a message</label>
+      {errorMessage && <p className="text-red-500 text-center">{errorMessage}</p>}
+      <label htmlFor="message-input" className="sr-only">Type a message</label>
       <textarea
       id="message-input"
         className="w-full p-2 border rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 text-xs md:text-base"
